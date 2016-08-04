@@ -1,11 +1,11 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" CSCOPE settings for vim           
+" CSCOPE settings for vim
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
 " This file contains some boilerplate settings for vim's cscope interface,
 " plus some keyboard mappings that I've found useful.
 "
-" USAGE: 
+" USAGE:
 " -- vim 6:     Stick this file in your ~/.vim/plugin directory (or in a
 "               'plugin' directory in some other directory that is in your
 "               'runtimepath'.
@@ -13,7 +13,7 @@
 " -- vim 5:     Stick this file somewhere and 'source cscope.vim' it from
 "               your ~/.vimrc file (or cut and paste it into your .vimrc).
 "
-" NOTE: 
+" NOTE:
 " These key maps use multiple keystrokes (2 or 3 keys).  If you find that vim
 " keeps timing you out before you can complete them, try changing your timeout
 " settings, as explained below.
@@ -23,9 +23,14 @@
 " Jason Duell       jduell@alumni.princeton.edu     2002/3/7
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+if &compatible || exists("g:loaded_cscope_maps")
+  finish
+endif
+
+let g:loaded_cscope_maps = 1
 
 " This tests to see if vim was configured with the '--enable-cscope' option
-" when it was compiled.  If it wasn't, time to recompile vim... 
+" when it was compiled.  If it wasn't, time to recompile vim...
 if has("cscope")
 
     """"""""""""" Standard cscope/vim boilerplate
@@ -35,18 +40,54 @@ if has("cscope")
 
     " check cscope for definition of a symbol before checking ctags: set to 1
     " if you want the reverse search order.
-    set csto=0
+    set csto=1
+
+    set cspc=0
 
     " add any cscope database in current directory
     if filereadable("cscope.out")
-        cs add cscope.out  
-    " else add the database pointed to by environment variable 
-    elseif $CSCOPE_DB != ""
+        " is already added by default in VIM 7 /etc/vimrc on some Linux machines ?,
+        "  so we need try/catch to sort it out
+        " Xxx: other option is to call "cs kill -1" to kill every cscope
+        " connection before loading following cscope databases to prevent
+        " duplicate database error
+        try
+            cs add cscope.out
+        catch /:E568:/
+            " E568 cscope problem: database already added
+            " just ignore
+        endtry
+    endif
+    " add the database pointed to by environment variable
+    if $CSCOPE_DB != ""
         cs add $CSCOPE_DB
+    endif
+    if $CSCOPEDB_PREFIX != ""
+        let prefix = $CSCOPEDB_PREFIX
+        let bre=0
+        for i in range(10)
+            for j in range(10)
+                let prefixnr = prefix.i.j
+                if filereadable(prefixnr)
+                    " should never be -1, because that would mean file is not
+                    " found (-2 however means file size is too big to fit into
+                    " an integer)
+                    if (getfsize(prefixnr) != 0)
+                        execute "cs add ".prefixnr
+                    endif
+                else
+                    let bre=1
+                    break
+                endif
+            endfor
+            if bre == 1
+                break
+            endif
+        endfor
     endif
 
     " show msg when any other cscope db added
-    set cscopeverbose  
+    set cscopeverbose
 
 
     """"""""""""" My cscope/vim key mappings
@@ -61,6 +102,7 @@ if has("cscope")
     "   'f'   file:   open the filename under cursor
     "   'i'   includes: find files that include the filename under cursor
     "   'd'   called: find functions that function under cursor calls
+    "   'a'   assignments: find assignments to the token under cursor
     "
     " Below are three sets of the maps: one set that just jumps to your
     " search result, one that splits the existing vim window horizontally and
@@ -138,7 +180,7 @@ if has("cscope")
     " You may find that too short with the above typemaps.  If so, you should
     " either turn off mapping timeouts via 'notimeout'.
     "
-    "set notimeout 
+    "set notimeout
     "
     " Or, you can keep timeouts, by uncommenting the timeoutlen line below,
     " with your own personal favorite value (in milliseconds):
@@ -151,7 +193,7 @@ if has("cscope")
     " delays as vim waits for a keystroke after you hit ESC (it will be
     " waiting to see if the ESC is actually part of a key code like <F1>).
     "
-    "set ttimeout 
+    "set ttimeout
     "
     " personally, I find a tenth of a second to work well for key code
     " timeouts. If you experience problems and have a slow terminal or network
