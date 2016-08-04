@@ -127,18 +127,41 @@ if has("cscope")
     " To do the first type of search, hit 'CTRL-\', followed by one of the
     " cscope search types above (s,g,c,t,e,f,i,d).  The result of your cscope
     " search will be displayed in the current window.  You can use CTRL-T to
-    " go back to where you were before the search.  
+    " go back to where you were before the search.
     "
 
-    nmap <C-\>s :cs find s <C-R>=expand("<cword>")<CR><CR>	
-    nmap <C-\>g :cs find g <C-R>=expand("<cword>")<CR><CR>	
-    nmap <C-\>c :cs find c <C-R>=expand("<cword>")<CR><CR>	
-    nmap <C-\>t :cs find t <C-R>=expand("<cword>")<CR><CR>	
-    nmap <C-\>e :cs find e <C-R>=expand("<cword>")<CR><CR>	
-    nmap <C-\>f :cs find f <C-R>=expand("<cfile>")<CR><CR>	
-    nmap <C-\>i :cs find i ^<C-R>=expand("<cfile>")<CR>$<CR>
-    nmap <C-\>d :cs find d <C-R>=expand("<cword>")<CR><CR>	
+    nmap <C-\>s :cs find s <C-R>=expand("<cword>")<CR><CR>
+    nmap <C-\>g :cs find g <C-R>=expand("<cword>")<CR><CR>
+    nmap <C-\>c :cs find c <C-R>=expand("<cword>")<CR><CR>
+    "nmap <C-\>t :cs find t <C-R>=expand("<cword>")<CR><CR>
+    "nmap <C-\>e :cs find e <C-R>=expand("<cword>")<CR><CR>
+    nmap <C-\>f :cs find f <C-R>=expand("<cfile>")<CR><CR>
+    nmap <C-\>i :cs find i <C-R>=expand("<cfile>")<CR><CR>
+    nmap <C-\>d :cs find d <C-R>=expand("<cword>")<CR><CR>
+    nmap <C-\>a :cs find a <C-R>=expand("<cword>")<CR><CR>
 
+    function! s:CscopeInNewTabFunc(type, keyword)
+        let l:saved_cursor = getpos(".")
+
+        exe "tabnew %"
+
+        call setpos('.', saved_cursor)
+
+        exe "cs find " . a:type . " " . a:keyword
+    endfunction
+    command! -nargs=+ CscopeCommand call s:CscopeInNewTabFunc(<f-args>)
+
+    " Open results in new tab
+    "nmap <C-\><C-\>s :call s:CscopeInNewTabFunc("s", "" . expand("<cword>"))<CR>
+    nmap <C-\><C-\>s :CscopeCommand s <cword><CR>
+    nmap <C-\><C-\>g :CscopeCommand g <cword><CR>
+    nmap <C-\><C-\>c :CscopeCommand c <cword><CR>
+    "nmap <C-\><C-\>t :CscopeCommand t <cword><CR>
+    "nmap <C-\><C-\>e :CscopeCommand e <cword><CR>
+    nmap <C-\><C-\>f :CscopeCommand f <cfile><CR>
+    nmap <C-\><C-\>i :CscopeCommand i <cfile><CR>
+    nmap <C-\><C-\>d :CscopeCommand d <cword><CR>
+    nmap <C-\><C-\>a :CscopeCommand a <cword><CR>
 
     " Using 'CTRL-spacebar' (intepreted as CTRL-@ by vim) then a search type
     " makes the vim window split horizontally, with search result displayed in
@@ -146,19 +169,20 @@ if has("cscope")
     "
     " (Note: earlier versions of vim may not have the :scs command, but it
     " can be simulated roughly via:
-    "    nmap <C-@>s <C-W><C-S> :cs find s <C-R>=expand("<cword>")<CR><CR>	
+    "    nmap <C-@>s <C-W><C-S> :cs find s <C-R>=expand("<cword>")<CR><CR>
 
-    nmap <C-@>s :scs find s <C-R>=expand("<cword>")<CR><CR>	
-    nmap <C-@>g :scs find g <C-R>=expand("<cword>")<CR><CR>	
-    nmap <C-@>c :scs find c <C-R>=expand("<cword>")<CR><CR>	
-    nmap <C-@>t :scs find t <C-R>=expand("<cword>")<CR><CR>	
-    nmap <C-@>e :scs find e <C-R>=expand("<cword>")<CR><CR>	
-    nmap <C-@>f :scs find f <C-R>=expand("<cfile>")<CR><CR>	
-    nmap <C-@>i :scs find i ^<C-R>=expand("<cfile>")<CR>$<CR>	
-    nmap <C-@>d :scs find d <C-R>=expand("<cword>")<CR><CR>	
+    nmap <C-@>s :scs find s <C-R>=expand("<cword>")<CR><CR>
+    nmap <C-@>g :scs find g <C-R>=expand("<cword>")<CR><CR>
+    nmap <C-@>c :scs find c <C-R>=expand("<cword>")<CR><CR>
+    "nmap <C-@>t :scs find t <C-R>=expand("<cword>")<CR><CR>
+    "nmap <C-@>e :scs find e <C-R>=expand("<cword>")<CR><CR>
+    nmap <C-@>f :scs find f <C-R>=expand("<cfile>")<CR><CR>
+    nmap <C-@>i :scs find i <C-R>=expand("<cfile>")<CR><CR>
+    nmap <C-@>d :scs find d <C-R>=expand("<cword>")<CR><CR>
+    nmap <C-@>a :scs find a <C-R>=expand("<cword>")<CR><CR>
 
 
-    " Hitting CTRL-space *twice* before the search type does a vertical 
+    " Hitting CTRL-space *twice* before the search type does a vertical
     " split instead of a horizontal one (vim 6 and up only)
     "
     " (Note: you may wish to put a 'set splitright' in your .vimrc
@@ -167,12 +191,45 @@ if has("cscope")
     nmap <C-@><C-@>s :vert scs find s <C-R>=expand("<cword>")<CR><CR>
     nmap <C-@><C-@>g :vert scs find g <C-R>=expand("<cword>")<CR><CR>
     nmap <C-@><C-@>c :vert scs find c <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-@><C-@>t :vert scs find t <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-@><C-@>e :vert scs find e <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-@><C-@>f :vert scs find f <C-R>=expand("<cfile>")<CR><CR>	
-    nmap <C-@><C-@>i :vert scs find i ^<C-R>=expand("<cfile>")<CR>$<CR>	
+    "nmap <C-@><C-@>t :vert scs find t <C-R>=expand("<cword>")<CR><CR>
+    "nmap <C-@><C-@>e :vert scs find e <C-R>=expand("<cword>")<CR><CR>
+    nmap <C-@><C-@>f :vert scs find f <C-R>=expand("<cfile>")<CR><CR>
+    nmap <C-@><C-@>i :vert scs find i <C-R>=expand("<cfile>")<CR><CR>
     nmap <C-@><C-@>d :vert scs find d <C-R>=expand("<cword>")<CR><CR>
+    nmap <C-@><C-@>a :vert scs find a <C-R>=expand("<cword>")<CR><CR>
 
+    " short cut key for inputing keyword by user
+    " these maps are borrowed from gtags-cscope.vim
+    " quote some of the licence information here:
+    " File: gtags-cscope.vim
+    " Author: Tama Communications Corporation
+    " Version: 0.4
+    " Last Modified: January 16, 2011
+
+    nmap <C-\><SPACE> :cs find<SPACE>
+    nmap <C-\><C-\><SPACE> :CscopeCommand<SPACE>
+    nmap <C-@><SPACE> :scs find<SPACE>
+    nmap <C-@><C-@><SPACE> :vert scs find<SPACE>
+
+    "use :css command to switch case sensitivity of cscope searches
+    function! s:SwitchCscopeCaseSensitivity()
+        if &cscopeprg =~ "cscope -C"
+            let &cscopeprg="cscope"
+        else
+            let &cscopeprg="cscope -C"
+        endif
+        silent cscope reset
+        echohl ModeMsg
+        if &cscopeprg =~ "cscope -C"
+            echo "case insensitive cscope mode"
+        else
+            echo "case sensitive cscope mode"
+        endif
+        echohl None
+    endfunction
+    command! Csswitchcase :call s:SwitchCscopeCaseSensitivity()
+
+    cabbrev css Csswitchcase
 
     """"""""""""" key map timeouts
     "
