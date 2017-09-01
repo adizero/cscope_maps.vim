@@ -1,264 +1,244 @@
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" CSCOPE settings for vim
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"
-" This file contains some boilerplate settings for vim's cscope interface,
-" plus some keyboard mappings that I've found useful.
-"
-" USAGE:
-" -- vim 6:     Stick this file in your ~/.vim/plugin directory (or in a
-"               'plugin' directory in some other directory that is in your
-"               'runtimepath'.
-"
-" -- vim 5:     Stick this file somewhere and 'source cscope.vim' it from
-"               your ~/.vimrc file (or cut and paste it into your .vimrc).
-"
-" NOTE:
-" These key maps use multiple keystrokes (2 or 3 keys).  If you find that vim
-" keeps timing you out before you can complete them, try changing your timeout
-" settings, as explained below.
-"
-" Happy cscoping,
-"
-" Jason Duell       jduell@alumni.princeton.edu     2002/3/7
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-if &compatible || exists("g:loaded_cscope_maps")
+if &compatible || exists('g:loaded_cscope_maps')
   finish
 endif
-
 let g:loaded_cscope_maps = 1
 
 " This tests to see if vim was configured with the '--enable-cscope' option
 " when it was compiled.  If it wasn't, time to recompile vim...
-if has("cscope")
+if !has('cscope')
+    finish
+endif
 
-    """"""""""""" Standard cscope/vim boilerplate
+" use both cscope and ctag for 'ctrl-]', ':ta', and 'vim -t'
+set cscopetag
 
-    " use both cscope and ctag for 'ctrl-]', ':ta', and 'vim -t'
-    set cscopetag
+" check cscope for definition of a symbol before checking ctags: set to 1
+" if you want the reverse search order.
+set cscopetagorder=1
 
-    " check cscope for definition of a symbol before checking ctags: set to 1
-    " if you want the reverse search order.
-    set csto=1
+set cscopepathcomp=0
 
-    set cspc=0
+set nocscopeverbose
 
-    " add any cscope database in current directory
-    if filereadable("cscope.out")
-        " is already added by default in VIM 7 /etc/vimrc on some Linux machines ?,
-        "  so we need try/catch to sort it out
-        " Xxx: other option is to call "cs kill -1" to kill every cscope
-        " connection before loading following cscope databases to prevent
-        " duplicate database error
-        try
-            cs add cscope.out
-        catch /:E568:/
-            " E568 cscope problem: database already added
-            " just ignore
-        endtry
-    endif
-    " add the database pointed to by environment variable
-    if $CSCOPE_DB != ""
-        cs add $CSCOPE_DB
-    endif
-    if $CSCOPEDB_PREFIX != ""
-        let prefix = $CSCOPEDB_PREFIX
-        let bre=0
-        for i in range(10)
-            for j in range(10)
-                let prefixnr = prefix.i.j
-                if filereadable(prefixnr)
-                    " should never be -1, because that would mean file is not
-                    " found (-2 however means file size is too big to fit into
-                    " an integer)
-                    if (getfsize(prefixnr) != 0)
-                        execute "cs add ".prefixnr
-                    endif
-                else
-                    let bre=1
-                    break
+" add any cscope database in current directory
+if filereadable('cscope.out')
+    " is already added by default in VIM 7 /etc/vimrc on some Linux machines ?,
+    "  so we need try/catch to sort it out
+    try
+        cs add cscope.out
+    catch /:E568:/
+        " E568: database already added, just ignore
+    endtry
+endif
+" add the database pointed to by environment variable
+if $CSCOPE_DB !=# ''
+    cs add $CSCOPE_DB
+endif
+if $CSCOPEDB_PREFIX !=# ''
+    let s:prefix = $CSCOPEDB_PREFIX
+    let s:bre=0
+    for s:i in range(10)
+        for s:j in range(10)
+            let s:prefixnr = s:prefix.s:i.s:j
+            if filereadable(s:prefixnr)
+                " should never be -1, because that would mean file is not
+                " found (-2 however means file size is too big to fit into
+                " an integer)
+                if (getfsize(s:prefixnr) != 0)
+                    execute 'cs add ' . s:prefixnr
                 endif
-            endfor
-            if bre == 1
+            else
+                let s:bre=1
                 break
             endif
         endfor
-    endif
-
-    " show msg when any other cscope db added
-    set cscopeverbose
-
-
-    """"""""""""" My cscope/vim key mappings
-    "
-    " The following maps all invoke one of the following cscope search types:
-    "
-    "   's'   symbol: find all references to the token under cursor
-    "   'g'   global: find global definition(s) of the token under cursor
-    "   'c'   calls:  find all calls to the function name under cursor
-    "   't'   text:   find all instances of the text under cursor
-    "   'e'   egrep:  egrep search for the word under cursor
-    "   'f'   file:   open the filename under cursor
-    "   'i'   includes: find files that include the filename under cursor
-    "   'd'   called: find functions that function under cursor calls
-    "   'a'   assignments: find assignments to the token under cursor
-    "
-    " Below are three sets of the maps: one set that just jumps to your
-    " search result, one that splits the existing vim window horizontally and
-    " diplays your search result in the new window, and one that does the same
-    " thing, but does a vertical split instead (vim 6 only).
-    "
-    " I've used CTRL-\ and CTRL-@ as the starting keys for these maps, as it's
-    " unlikely that you need their default mappings (CTRL-\'s default use is
-    " as part of CTRL-\ CTRL-N typemap, which basically just does the same
-    " thing as hitting 'escape': CTRL-@ doesn't seem to have any default use).
-    " If you don't like using 'CTRL-@' or CTRL-\, , you can change some or all
-    " of these maps to use other keys.  One likely candidate is 'CTRL-_'
-    " (which also maps to CTRL-/, which is easier to type).  By default it is
-    " used to switch between Hebrew and English keyboard mode.
-    "
-    " All of the maps involving the <cfile> macro use '^<cfile>$': this is so
-    " that searches over '#include <time.h>" return only references to
-    " 'time.h', and not 'sys/time.h', etc. (by default cscope will return all
-    " files that contain 'time.h' as part of their name).
-
-
-    " To do the first type of search, hit 'CTRL-\', followed by one of the
-    " cscope search types above (s,g,c,t,e,f,i,d).  The result of your cscope
-    " search will be displayed in the current window.  You can use CTRL-T to
-    " go back to where you were before the search.
-    "
-
-    nmap <C-\>s :cs find s <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-\>g :cs find g <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-\>c :cs find c <C-R>=expand("<cword>")<CR><CR>
-    "nmap <C-\>t :cs find t <C-R>=expand("<cword>")<CR><CR>
-    "nmap <C-\>e :cs find e <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-\>f :cs find f <C-R>=expand("<cfile>")<CR><CR>
-    nmap <C-\>i :cs find i <C-R>=expand("<cfile>")<CR><CR>
-    nmap <C-\>d :cs find d <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-\>a :cs find a <C-R>=expand("<cword>")<CR><CR>
-
-    function! s:CscopeInNewTabFunc(type, keyword)
-        let l:saved_cursor = getpos(".")
-
-        exe "tabnew %"
-
-        call setpos('.', saved_cursor)
-
-        exe "cs find " . a:type . " " . a:keyword
-    endfunction
-    command! -nargs=+ CscopeCommand call s:CscopeInNewTabFunc(<f-args>)
-
-    " Open results in new tab
-    "nmap <C-\><C-\>s :call s:CscopeInNewTabFunc("s", "" . expand("<cword>"))<CR>
-    nmap <C-\><C-\>s :CscopeCommand s <cword><CR>
-    nmap <C-\><C-\>g :CscopeCommand g <cword><CR>
-    nmap <C-\><C-\>c :CscopeCommand c <cword><CR>
-    "nmap <C-\><C-\>t :CscopeCommand t <cword><CR>
-    "nmap <C-\><C-\>e :CscopeCommand e <cword><CR>
-    nmap <C-\><C-\>f :CscopeCommand f <cfile><CR>
-    nmap <C-\><C-\>i :CscopeCommand i <cfile><CR>
-    nmap <C-\><C-\>d :CscopeCommand d <cword><CR>
-    nmap <C-\><C-\>a :CscopeCommand a <cword><CR>
-
-    " Using 'CTRL-spacebar' (intepreted as CTRL-@ by vim) then a search type
-    " makes the vim window split horizontally, with search result displayed in
-    " the new window.
-    "
-    " (Note: earlier versions of vim may not have the :scs command, but it
-    " can be simulated roughly via:
-    "    nmap <C-@>s <C-W><C-S> :cs find s <C-R>=expand("<cword>")<CR><CR>
-
-    nmap <C-@>s :scs find s <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-@>g :scs find g <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-@>c :scs find c <C-R>=expand("<cword>")<CR><CR>
-    "nmap <C-@>t :scs find t <C-R>=expand("<cword>")<CR><CR>
-    "nmap <C-@>e :scs find e <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-@>f :scs find f <C-R>=expand("<cfile>")<CR><CR>
-    nmap <C-@>i :scs find i <C-R>=expand("<cfile>")<CR><CR>
-    nmap <C-@>d :scs find d <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-@>a :scs find a <C-R>=expand("<cword>")<CR><CR>
-
-
-    " Hitting CTRL-space *twice* before the search type does a vertical
-    " split instead of a horizontal one (vim 6 and up only)
-    "
-    " (Note: you may wish to put a 'set splitright' in your .vimrc
-    " if you prefer the new window on the right instead of the left
-
-    nmap <C-@><C-@>s :vert scs find s <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-@><C-@>g :vert scs find g <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-@><C-@>c :vert scs find c <C-R>=expand("<cword>")<CR><CR>
-    "nmap <C-@><C-@>t :vert scs find t <C-R>=expand("<cword>")<CR><CR>
-    "nmap <C-@><C-@>e :vert scs find e <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-@><C-@>f :vert scs find f <C-R>=expand("<cfile>")<CR><CR>
-    nmap <C-@><C-@>i :vert scs find i <C-R>=expand("<cfile>")<CR><CR>
-    nmap <C-@><C-@>d :vert scs find d <C-R>=expand("<cword>")<CR><CR>
-    nmap <C-@><C-@>a :vert scs find a <C-R>=expand("<cword>")<CR><CR>
-
-    " short cut key for inputing keyword by user
-    " these maps are borrowed from gtags-cscope.vim
-    " quote some of the licence information here:
-    " File: gtags-cscope.vim
-    " Author: Tama Communications Corporation
-    " Version: 0.4
-    " Last Modified: January 16, 2011
-
-    nmap <C-\><SPACE> :cs find<SPACE>
-    nmap <C-\><C-\><SPACE> :CscopeCommand<SPACE>
-    nmap <C-@><SPACE> :scs find<SPACE>
-    nmap <C-@><C-@><SPACE> :vert scs find<SPACE>
-
-    "use :css command to switch case sensitivity of cscope searches
-    function! s:SwitchCscopeCaseSensitivity()
-        if &cscopeprg =~ "cscope -C"
-            let &cscopeprg="cscope"
-        else
-            let &cscopeprg="cscope -C"
+        if s:bre == 1
+            break
         endif
-        silent cscope reset
-        echohl ModeMsg
-        if &cscopeprg =~ "cscope -C"
-            echo "case insensitive cscope mode"
-        else
-            echo "case sensitive cscope mode"
-        endif
-        echohl None
-    endfunction
-    command! Csswitchcase :call s:SwitchCscopeCaseSensitivity()
-
-    cabbrev css Csswitchcase
-
-    """"""""""""" key map timeouts
-    "
-    " By default Vim will only wait 1 second for each keystroke in a mapping.
-    " You may find that too short with the above typemaps.  If so, you should
-    " either turn off mapping timeouts via 'notimeout'.
-    "
-    "set notimeout
-    "
-    " Or, you can keep timeouts, by uncommenting the timeoutlen line below,
-    " with your own personal favorite value (in milliseconds):
-    "
-    "set timeoutlen=4000
-    "
-    " Either way, since mapping timeout settings by default also set the
-    " timeouts for multicharacter 'keys codes' (like <F1>), you should also
-    " set ttimeout and ttimeoutlen: otherwise, you will experience strange
-    " delays as vim waits for a keystroke after you hit ESC (it will be
-    " waiting to see if the ESC is actually part of a key code like <F1>).
-    "
-    "set ttimeout
-    "
-    " personally, I find a tenth of a second to work well for key code
-    " timeouts. If you experience problems and have a slow terminal or network
-    " connection, set it higher.  If you don't set ttimeoutlen, the value for
-    " timeoutlent (default: 1000 = 1 second, which is sluggish) is used.
-    "
-    "set ttimeoutlen=100
-
+    endfor
 endif
 
+" show msg after any other cscope db is added
+set cscopeverbose
 
+
+command! -nargs=1 CscopeSearch call cscope#CscopeSearch(<f-args>)
+command! -nargs=1 CscopeInNewTab call cscope#CscopeInNewTab(<f-args>)
+
+command! -nargs=1 -complete=tag CtagsSearch call cscope#CtagsSearch('tag', <f-args>)
+command! -nargs=1 -complete=tag CtagsInNewTab call cscope#CtagsInNewTab('tjump', <f-args>)
+command! -nargs=1 -complete=tag PreviewTjumpSearch call cscope#PreviewTjumpSearch(<f-args>)
+" command mode abbreviation of tt as tabnew % | tag <args>
+command! -nargs=1 -complete=tag TT call cscope#CtagsInNewTab('tag', <f-args>)
+cabbrev tt <c-r>=(getcmdtype()==':' && getcmdpos()==1 ? 'TT' : 'tt')<CR>
+
+command! CscopeSwitchcase call cscope#SwitchCscopeCaseSensitivity()
+
+
+" open results in the current window
+nmap <C-\>s :CscopeSearch cs s <cword><CR>
+nmap <C-\>g :CscopeSearch cs g <cword><CR>
+nmap <C-\>c :CscopeSearch cs c <cword><CR>
+nmap <C-\>t :CscopeSearch cs t <cword><CR>
+nmap <C-\>e :CscopeSearch cs e <cword><CR>
+nmap <C-\>f :CscopeSearch cs f <cfile><CR>
+nmap <C-\>i :CscopeSearch cs i <cfile><CR>
+nmap <C-\>d :CscopeSearch cs d <cword><CR>
+nmap <C-\>a :CscopeSearch cs a <cword><CR>
+nmap <C-\>m :CscopeSearch cs m <cword><CR>
+
+"vmap <C-\>s <Esc>:call cscope#CscopeSearch("cs", "s", g:GetVisualSelection())<Enter>gv
+vmap <C-\>s <Esc>:execute 'CscopeSearch cs s ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\>g <Esc>:execute 'CscopeSearch cs g ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\>c <Esc>:execute 'CscopeSearch cs c ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\>t <Esc>:execute 'CscopeSearch cs t ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\>e <Esc>:execute 'CscopeSearch cs e ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\>f <Esc>:execute 'CscopeSearch cs f ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\>i <Esc>:execute 'CscopeSearch cs i ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\>d <Esc>:execute 'CscopeSearch cs d ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\>a <Esc>:execute 'CscopeSearch cs a ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\>m <Esc>:execute 'CscopeSearch cs m ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+
+" open results in a new tab
+nmap <C-\><C-\>s :CscopeInNewTab s <cword><CR>
+nmap <C-\><C-\>g :CscopeInNewTab g <cword><CR>
+nmap <C-\><C-\>c :CscopeInNewTab c <cword><CR>
+nmap <C-\><C-\>t :CscopeInNewTab t <cword><CR>
+nmap <C-\><C-\>e :CscopeInNewTab e <cword><CR>
+nmap <C-\><C-\>f :CscopeInNewTab f <cfile><CR>
+nmap <C-\><C-\>i :CscopeInNewTab i <cfile><CR>
+nmap <C-\><C-\>d :CscopeInNewTab d <cword><CR>
+nmap <C-\><C-\>a :CscopeInNewTab a <cword><CR>
+nmap <C-\><C-\>m :CscopeInNewTab m <cword><CR>
+
+vmap <C-\><C-\>s <Esc>:execute 'CscopeInNewTab s ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\><C-\>g <Esc>:execute 'CscopeInNewTab g ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\><C-\>c <Esc>:execute 'CscopeInNewTab c ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\><C-\>t <Esc>:execute 'CscopeInNewTab t ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\><C-\>e <Esc>:execute 'CscopeInNewTab e ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\><C-\>f <Esc>:execute 'CscopeInNewTab f ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\><C-\>i <Esc>:execute 'CscopeInNewTab i ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\><C-\>d <Esc>:execute 'CscopeInNewTab d ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\><C-\>a <Esc>:execute 'CscopeInNewTab a ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-\><C-\>m <Esc>:execute 'CscopeInNewTab m ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+
+" horizontal splits
+nmap <C-@>s :CscopeSearch scs s <cword><CR>
+nmap <C-@>g :CscopeSearch scs g <cword><CR>
+nmap <C-@>c :CscopeSearch scs c <cword><CR>
+nmap <C-@>t :CscopeSearch scs t <cword><CR>
+nmap <C-@>e :CscopeSearch scs e <cword><CR>
+nmap <C-@>f :CscopeSearch scs f <cfile><CR>
+nmap <C-@>i :CscopeSearch scs i <cfile><CR>
+nmap <C-@>d :CscopeSearch scs d <cword><CR>
+nmap <C-@>a :CscopeSearch scs a <cword><CR>
+nmap <C-@>m :CscopeSearch scs m <cword><CR>
+
+vmap <C-@>s <Esc>:execute 'CscopeSearch scs s ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@>g <Esc>:execute 'CscopeSearch scs g ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@>c <Esc>:execute 'CscopeSearch scs c ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@>t <Esc>:execute 'CscopeSearch scs t ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@>e <Esc>:execute 'CscopeSearch scs e ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@>f <Esc>:execute 'CscopeSearch scs f ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@>i <Esc>:execute 'CscopeSearch scs i ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@>d <Esc>:execute 'CscopeSearch scs d ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@>a <Esc>:execute 'CscopeSearch scs a ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@>m <Esc>:execute 'CscopeSearch scs m ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+
+" vertical splits
+nmap <C-@><C-@>s :CscopeSearch vert\ scs s <cword><CR>
+nmap <C-@><C-@>g :CscopeSearch vert\ scs g <cword><CR>
+nmap <C-@><C-@>c :CscopeSearch vert\ scs c <cword><CR>
+nmap <C-@><C-@>t :CscopeSearch vert\ scs t <cword><CR>
+nmap <C-@><C-@>e :CscopeSearch vert\ scs e <cword><CR>
+nmap <C-@><C-@>f :CscopeSearch vert\ scs f <cfile><CR>
+nmap <C-@><C-@>i :CscopeSearch vert\ scs i <cfile><CR>
+nmap <C-@><C-@>d :CscopeSearch vert\ scs d <cword><CR>
+nmap <C-@><C-@>a :CscopeSearch vert\ scs a <cword><CR>
+nmap <C-@><C-@>m :CscopeSearch vert\ scs m <cword><CR>
+
+vmap <C-@><C-@>s <Esc>:execute 'CscopeSearch vert\ scs s ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@><C-@>g <Esc>:execute 'CscopeSearch vert\ scs g ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@><C-@>c <Esc>:execute 'CscopeSearch vert\ scs c ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@><C-@>t <Esc>:execute 'CscopeSearch vert\ scs t ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@><C-@>e <Esc>:execute 'CscopeSearch vert\ scs e ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@><C-@>f <Esc>:execute 'CscopeSearch vert\ scs f ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@><C-@>i <Esc>:execute 'CscopeSearch vert\ scs i ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@><C-@>d <Esc>:execute 'CscopeSearch vert\ scs d ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@><C-@>a <Esc>:execute 'CscopeSearch vert\ scs a ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap <C-@><C-@>m <Esc>:execute 'CscopeSearch vert\ scs m ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+
+nmap <C-\><SPACE> :CscopeSearch cs<SPACE>
+nmap <C-\><C-\><SPACE> :CscopeInNewTab<SPACE>
+nmap <C-@><SPACE> :CscopeSearch scs<SPACE>
+nmap <C-@><C-@><SPACE> :CscopeSearch vert\ scs<SPACE>
+
+" added simplified mappings (<C+\> is kind of hard to reach on Macbooks with only left Ctrl)
+nmap \s <C-\>s
+nmap \g <C-\>g
+nmap \c <C-\>c
+nmap \t <C-\>t
+nmap \e <C-\>e
+nmap \f <C-\>f
+nmap \i <C-\>i
+nmap \d <C-\>d
+nmap \a <C-\>a
+nmap \m <C-\>m
+nmap \<Space> <C-\><Space>
+nmap \] :CtagsSearch <cword><CR>
+nmap \} :PreviewTjumpSearch <cword><CR>
+nmap \<Backspace> <C-T>
+
+vmap \s <C-\>s
+vmap \g <C-\>g
+vmap \c <C-\>c
+vmap \t <C-\>t
+vmap \e <C-\>e
+vmap \f <C-\>f
+vmap \i <C-\>i
+vmap \d <C-\>d
+vmap \a <C-\>a
+vmap \m <C-\>m
+vmap \<Space> <C-\><Space>
+vmap \] <Esc>:execute 'CtagsSearch ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+vmap \} <Esc>:execute 'PreviewTjumpSearch ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+
+nmap \\s <C-\><C-\>s
+nmap \\g <C-\><C-\>g
+nmap \\c <C-\><C-\>c
+nmap \\t <C-\><C-\>t
+nmap \\e <C-\><C-\>e
+nmap \\f <C-\><C-\>f
+nmap \\i <C-\><C-\>i
+nmap \\d <C-\><C-\>d
+nmap \\a <C-\><C-\>a
+nmap \\m <C-\><C-\>m
+nmap \\<Space> <C-\><C-\><Space>
+nmap \\] :CtagsInNewTab <cword><CR>
+nmap \\<Backspace> <C-O>
+nmap \\\<Backspace> <C-I>
+
+vmap \\s <C-\><C-\>s
+vmap \\g <C-\><C-\>g
+vmap \\c <C-\><C-\>c
+vmap \\t <C-\><C-\>t
+vmap \\e <C-\><C-\>e
+vmap \\f <C-\><C-\>f
+vmap \\i <C-\><C-\>i
+vmap \\d <C-\><C-\>d
+vmap \\a <C-\><C-\>a
+vmap \\m <C-\><C-\>m
+vmap \\<Space> <C-\><C-\><Space>
+vmap \\] <Esc>:execute 'CtagsInNewTab ' . escape(g:GetVisualSelection(), '\ ') <Bar> normal! gv<CR>
+
+nmap <silent>z<LeftMouse> <C-\>s
+nmap <silent>z<RightMouse> <C-\>c
+nmap <A-LeftMouse> z<LeftMouse>
+nmap <A-RightMouse> z<RightMouse>
+
+nmap <C-\>h :YcmCompleter GoToDeclaration<CR>
+nmap <C-\><C-\>h :tab split<CR> :YcmCompleter GoToDeclaration<CR>
+nmap <C-@>h :split<CR> :YcmCompleter GoToDeclaration<CR>
+nmap <C-@><C-@>h :vsplit<CR> :YcmCompleter GoToDeclaration<CR>
+nmap \h :YcmCompleter GoToDeclaration<CR>
+nmap \\h :tab split<CR> :YcmCompleter GoToDeclaration<CR>
